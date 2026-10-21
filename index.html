@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LockLink — Zero-Knowledge Link Encryption</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            900: '#312e81',
+                        },
+                        dark: {
+                            bg: '#090d16',
+                            card: '#111827',
+                            border: '#1f2937',
+                            accent: '#1e293b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 3s infinite alternate',
+                        'spin-slow': 'spin 8s linear infinite',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%': { boxShadow: '0 0 15px rgba(99, 102, 241, 0.2)' },
+                            '100%': { boxShadow: '0 0 30px rgba(99, 102, 241, 0.6)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- QRCode.js library CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #f3f4f6;
+            background-image: 
+                radial-gradient(circle at 20% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-brand-500 selection:text-white">
+
+    <!-- Header / Navbar -->
+    <header class="border-b border-gray-800/80 backdrop-blur-md bg-dark-bg/80 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="navigateToHome()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center shadow-lg shadow-brand-500/30">
+                    <i class="fa-solid fa-lock text-white text-lg"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400">LockLink</span>
+                    <span class="text-xs text-brand-400 font-medium px-2 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/20 ml-2">AES-256</span>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <a href="#how-it-works" class="text-sm font-medium text-gray-400 hover:text-white transition-colors hidden sm:block">
+                    <i class="fa-solid fa-shield-halved text-brand-400 mr-1.5"></i>Zero-Knowledge Security
+                </a>
+                <button id="navCreateBtn" onclick="navigateToHome()" class="text-xs sm:text-sm font-medium px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-all">
+                    <i class="fa-solid fa-plus text-brand-400 mr-1.5"></i>Create Link
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div class="w-full max-w-2xl">
+
+            <!-- ================= VIEW 1: GENERATOR SECTION ================= -->
+            <div id="generatorView" class="space-y-8">
+
+                <!-- Hero Header -->
+                <div class="text-center space-y-3">
+                    <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+                        Protect Any URL with <span class="bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-purple-400">Client-Side Encryption</span>
+                    </h1>
+                    <p class="text-gray-400 max-w-xl mx-auto text-sm sm:text-base">
+                        Your link is encrypted inside your browser before sharing. No database, no backend server, and absolute privacy.
+                    </p>
+                </div>
+
+                <!-- Input Card -->
+                <div class="bg-dark-card border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+                    <!-- Subtle Glow Effect -->
+                    <div class="absolute -top-24 -right-24 w-48 h-48 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <form id="lockForm" onsubmit="handleGenerateLink(event)" class="space-y-5">
+                        
+                        <!-- Destination URL Field -->
+                        <div>
+                            <label for="destUrl" class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+                                <i class="fa-solid fa-link text-brand-400 mr-1.5"></i>Destination URL <span class="text-rose-400">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="url" id="destUrl" required placeholder="https://example.com/secret-document" 
+                                    class="w-full px-4 py-3 bg-dark-bg border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all pl-11 text-sm sm:text-base">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                    <i class="fa-solid fa-globe"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password Field -->
+                        <div>
+                            <label for="passphrase" class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+                                <i class="fa-solid fa-key text-brand-400 mr-1.5"></i>Encryption Password / Passphrase <span class="text-rose-400">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="password" id="passphrase" required minlength="3" placeholder="Enter a secure password to unlock" 
+                                    class="w-full px-4 py-3 bg-dark-bg border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all pl-11 pr-11 text-sm sm:text-base">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                    <i class="fa-solid fa-lock"></i>
+                                </div>
+                                <button type="button" onclick="togglePasswordVisibility('passphrase', 'togglePassIcon')" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-white transition-colors">
+                                    <i id="togglePassIcon" class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Optional Hint Field -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label for="passwordHint" class="block text-xs font-semibold uppercase tracking-wider text-gray-300">
+                                    <i class="fa-solid fa-lightbulb text-amber-400 mr-1.5"></i>Password Hint <span class="text-gray-500 font-normal lowercase">(optional)</span>
+                                </label>
+                                <span class="text-xs text-gray-500">Stored unencrypted in hash</span>
+                            </div>
+                            <div class="relative">
+                                <input type="text" id="passwordHint" placeholder="e.g. My childhood pet's name" 
+                                    class="w-full px-4 py-2.5 bg-dark-bg border border-gray-700/80 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all pl-11 text-sm">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                    <i class="fa-solid fa-comment-dots"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button type="submit" id="generateBtn" class="w-full py-3.5 px-6 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/30 hover:shadow-brand-500/50 transition-all duration-200 flex items-center justify-center space-x-2 text-sm sm:text-base group mt-2">
+                            <i class="fa-solid fa-bolt text-amber-300 group-hover:scale-110 transition-transform"></i>
+                            <span>Generate Locked Link</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Result Container (Hidden until created) -->
+                <div id="resultCard" class="hidden bg-dark-card border border-brand-500/30 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 animate-pulse-glow">
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                                <i class="fa-solid fa-check text-sm"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white">Your Encrypted Link is Ready!</h3>
+                        </div>
+                        <span class="text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-2.5 py-1 rounded-full font-medium">
+                            Ready to share
+                        </span>
+                    </div>
+
+                    <!-- Generated Link Input & Actions -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Locked URL</label>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input type="text" id="generatedUrlInput" readonly class="w-full px-4 py-3 bg-dark-bg border border-gray-700 rounded-xl text-brand-400 font-mono text-xs sm:text-sm focus:outline-none select-all truncate">
+                            <button onclick="copyGeneratedLink()" id="copyBtn" class="px-5 py-3 bg-brand-600 hover:bg-brand-500 text-white font-medium rounded-xl transition-colors flex items-center justify-center space-x-2 shrink-0">
+                                <i class="fa-solid fa-copy"></i>
+                                <span id="copyBtnText">Copy Link</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Tools: Test & QR Code -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <!-- QR Code Container -->
+                        <div class="bg-dark-bg border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center space-y-3">
+                            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center">
+                                <i class="fa-solid fa-qrcode mr-1.5 text-brand-400"></i> QR Code
+                            </div>
+                            <div id="qrcode" class="p-2 bg-white rounded-lg shadow-inner"></div>
+                            <p class="text-xs text-gray-500 text-center">Scan with smartphone camera</p>
+                        </div>
+
+                        <!-- Instructions / Test link -->
+                        <div class="bg-dark-bg border border-gray-800 rounded-xl p-4 flex flex-col justify-between space-y-4">
+                            <div>
+                                <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 flex items-center">
+                                    <i class="fa-solid fa-circle-info mr-1.5 text-brand-400"></i> How it Works
+                                </h4>
+                                <p class="text-xs text-gray-400 leading-relaxed">
+                                    The encrypted cipher payload is stored in the link fragment (<code class="text-brand-300">#data=...</code>). Receivers must enter your set password to decrypt the URL.
+                                </p>
+                            </div>
+                            <a id="testLinkBtn" href="#" target="_blank" class="w-full py-2.5 px-4 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-lg text-xs font-medium transition-colors flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-arrow-up-right-from-square text-brand-400"></i>
+                                <span>Test Unlock Page in New Tab</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <!-- ================= VIEW 2: UNLOCK / REDIRECT SECTION ================= -->
+            <div id="unlockView" class="hidden space-y-6">
+
+                <!-- Lock Graphic Card -->
+                <div class="bg-dark-card border border-gray-800 rounded-2xl p-6 sm:p-10 shadow-2xl relative overflow-hidden backdrop-blur-xl text-center space-y-6">
+                    
+                    <div class="relative mx-auto w-20 h-20 flex items-center justify-center">
+                        <div class="absolute inset-0 bg-brand-500/20 rounded-full blur-xl"></div>
+                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white text-3xl shadow-lg shadow-brand-500/40 relative z-10">
+                            <i id="lockStateIcon" class="fa-solid fa-lock"></i>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Protected Link Access</h2>
+                        <p class="text-gray-400 text-sm mt-1">This destination URL is encrypted with AES-256-GCM. Enter password to view.</p>
+                    </div>
+
+                    <!-- Password Form -->
+                    <form id="unlockForm" onsubmit="handleUnlockLink(event)" class="space-y-4 max-w-md mx-auto text-left">
+                        
+                        <!-- Hint box if present -->
+                        <div id="hintContainer" class="hidden bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start space-x-2">
+                            <i class="fa-solid fa-lightbulb text-amber-400 mt-0.5 shrink-0"></i>
+                            <div>
+                                <span class="font-semibold block">Password Hint:</span>
+                                <span id="hintText" class="text-amber-200/90"></span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="unlockPassword" class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+                                Password Required
+                            </label>
+                            <div class="relative">
+                                <input type="password" id="unlockPassword" required placeholder="Enter password to unlock" 
+                                    class="w-full px-4 py-3 bg-dark-bg border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all pl-11 pr-11 text-sm sm:text-base">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                    <i class="fa-solid fa-key"></i>
+                                </div>
+                                <button type="button" onclick="togglePasswordVisibility('unlockPassword', 'toggleUnlockIcon')" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-white transition-colors">
+                                    <i id="toggleUnlockIcon" class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Feedback Message Area -->
+                        <div id="unlockFeedback" class="hidden text-xs rounded-xl p-3 flex items-center space-x-2">
+                            <i id="feedbackIcon" class="fa-solid"></i>
+                            <span id="feedbackText"></span>
+                        </div>
+
+                        <button type="submit" id="unlockBtn" class="w-full py-3.5 px-6 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/30 transition-all duration-200 flex items-center justify-center space-x-2 text-sm sm:text-base">
+                            <i class="fa-solid fa-unlock"></i>
+                            <span>Decrypt & Access URL</span>
+                        </button>
+                    </form>
+
+                    <!-- Success Redirect Area (Hidden by default) -->
+                    <div id="redirectArea" class="hidden space-y-5 pt-2">
+                        <div class="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-sm space-y-1">
+                            <p class="font-bold flex items-center justify-center space-x-2 text-emerald-400">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span>Decryption Successful!</span>
+                            </p>
+                            <p class="text-xs text-emerald-200/80">Redirecting to target website in <span id="countdownSec" class="font-bold text-white text-base">3</span> seconds...</p>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <a id="directRedirectLink" href="#" class="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-colors text-sm flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30">
+                                <span>Redirect Now</span>
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                            <button onclick="copyTargetUrl()" class="py-3 px-4 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-semibold rounded-xl transition-colors text-sm flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-copy"></i>
+                                <span>Copy Unlocked URL</span>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Explanatory Section (Zero-Knowledge Architecture) -->
+            <section id="how-it-works" class="mt-12 bg-dark-card/50 border border-gray-800/80 rounded-2xl p-6 sm:p-8 space-y-4">
+                <div class="flex items-center space-x-2 text-brand-400 font-bold text-sm uppercase tracking-wider">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>How Zero-Knowledge LockLink Works</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-gray-400 pt-2">
+                    <div class="space-y-2">
+                        <div class="font-semibold text-gray-200 flex items-center text-sm">
+                            <span class="w-6 h-6 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs mr-2">1</span>
+                            Client-Side AES-256
+                        </div>
+                        <p class="leading-relaxed">Your URL is encrypted locally using PBKDF2 key derivation with 100,000 salt iterations and AES-256-GCM. No plain password or URL ever leaves your device.</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="font-semibold text-gray-200 flex items-center text-sm">
+                            <span class="w-6 h-6 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs mr-2">2</span>
+                            Hash Fragment Storage
+                        </div>
+                        <p class="leading-relaxed">The encrypted payload (Ciphertext, IV, Salt) is stored strictly in the URL hash fragment (<code class="text-brand-300">#data=...</code>). Web browsers never send hash fragments to servers.</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="font-semibold text-gray-200 flex items-center text-sm">
+                            <span class="w-6 h-6 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs mr-2">3</span>
+                            In-Browser Decryption
+                        </div>
+                        <p class="leading-relaxed">When the target user opens the link and enters the correct password, the browser derives the key and decrypts the destination URL right inside memory.</p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800/80 bg-dark-bg py-6 text-center text-xs text-gray-500">
+        <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p>© 2026 LockLink — Client-Side Encrypted Link Protection.</p>
+            <div class="flex items-center space-x-4">
+                <span class="flex items-center"><i class="fa-solid fa-lock text-emerald-400 mr-1.5"></i> 100% Serverless & Private</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript logic & Web Crypto API Implementation -->
+    <script>
+        // Global variables
+        let qrCodeInstance = null;
+        let decryptedTargetUrl = '';
+        let redirectTimer = null;
+
+        // On Page Load: Check hash parameters to decide view mode
+        window.addEventListener('DOMContentLoaded', () => {
+            checkHashAndInitView();
+        });
+
+        // Listen for hash changes
+        window.addEventListener('hashchange', () => {
+            checkHashAndInitView();
+        });
+
+        /**
+         * Route between Generator and Unlock view based on URL hash
+         */
+        function checkHashAndInitView() {
+            const hash = window.location.hash;
+            const params = new URLSearchParams(hash.replace(/^#/, ''));
+            const encryptedData = params.get('data');
+
+            if (encryptedData) {
+                // Unlock view mode
+                document.getElementById('generatorView').classList.add('hidden');
+                document.getElementById('unlockView').classList.remove('hidden');
+                document.getElementById('navCreateBtn').classList.remove('hidden');
+
+                // Check for hint
+                const hint = params.get('hint');
+                const hintContainer = document.getElementById('hintContainer');
+                const hintText = document.getElementById('hintText');
+                if (hint) {
+                    hintText.textContent = decodeURIComponent(hint);
+                    hintContainer.classList.remove('hidden');
+                } else {
+                    hintContainer.classList.add('hidden');
+                }
+            } else {
+                // Generator view mode
+                document.getElementById('unlockView').classList.add('hidden');
+                document.getElementById('generatorView').classList.remove('hidden');
+            }
+        }
+
+        function navigateToHome() {
+            window.location.hash = '';
+            checkHashAndInitView();
+        }
+
+        /**
+         * Toggle Password visibility
+         */
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        /* ====================================================================
+         * CRYPTOGRAPHY ENGINE (Web Crypto API - AES-GCM + PBKDF2)
+         * ==================================================================== */
+
+        // Helper: Convert ArrayBuffer to Base64URL string
+        function bufferToBase64Url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+        }
+
+        // Helper: Convert Base64URL string to Uint8Array
+        function base64UrlToBuffer(base64url) {
+            let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) {
+                base64 += '=';
+            }
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        /**
+         * Derives AES-GCM key from password and salt using PBKDF2
+         */
+        async function deriveKey(password, salt) {
+            const enc = new TextEncoder();
+            const passwordKey = await crypto.subcrypto.importKey(
+                'raw',
+                enc.encode(password),
+                'PBKDF2',
+                false,
+                ['deriveKey']
+            );
+
+            return await crypto.subcrypto.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                passwordKey,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        /**
+         * Encrypts URL text using AES-256-GCM
+         */
+        async function encryptUrl(plainTextUrl, password) {
+            const enc = new TextEncoder();
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+
+            const key = await deriveKey(password, salt);
+
+            const cipherBuffer = await crypto.subcrypto.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                enc.encode(plainTextUrl)
+            );
+
+            // Pack Salt (16B) + IV (12B) + Ciphertext into one binary array
+            const combined = new Uint8Array(salt.byteLength + iv.byteLength + cipherBuffer.byteLength);
+            combined.set(new Uint8Array(salt), 0);
+            combined.set(new Uint8Array(iv), salt.byteLength);
+            combined.set(new Uint8Array(cipherBuffer), salt.byteLength + iv.byteLength);
+
+            return bufferToBase64Url(combined.buffer);
+        }
+
+        /**
+         * Decrypts payload using AES-256-GCM
+         */
+        async function decryptUrl(packedBase64, password) {
+            const packedBuffer = base64UrlToBuffer(packedBase64);
+            const bytes = new Uint8Array(packedBuffer);
+
+            if (bytes.byteLength < 28) {
+                throw new Error('Invalid payload size');
+            }
+
+            // Extract Salt (16B), IV (12B), Ciphertext (rest)
+            const salt = bytes.slice(0, 16);
+            const iv = bytes.slice(16, 28);
+            const ciphertext = bytes.slice(28);
+
+            const key = await deriveKey(password, salt);
+
+            const decryptedBuffer = await crypto.subcrypto.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                ciphertext
+            );
+
+            const dec = new TextDecoder();
+            return dec.decode(decryptedBuffer);
+        }
+
+        /* Polyfill fix for crypto.subcrypto vs crypto.subtle in modern environments */
+        if (!crypto.subcrypto && crypto.subtle) {
+            crypto.subcrypto = crypto.subtle;
+        }
+
+
+        /* ====================================================================
+         * FORM HANDLERS & UI ACTIONS
+         * ==================================================================== */
+
+        /**
+         * Handle Encrypted Link Generation
+         */
+        async function handleGenerateLink(e) {
+            e.preventDefault();
+            const destUrl = document.getElementById('destUrl').value.trim();
+            const passphrase = document.getElementById('passphrase').value;
+            const hint = document.getElementById('passwordHint').value.trim();
+
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Encrypting URL...</span>';
+
+            try {
+                const encryptedPayload = await encryptUrl(destUrl, passphrase);
+
+                // Build output URL hash
+                let hashString = `data=${encryptedPayload}`;
+                if (hint) {
+                    hashString += `&hint=${encodeURIComponent(hint)}`;
+                }
+
+                const baseUrl = window.location.origin + window.location.pathname;
+                const fullLockedUrl = `${baseUrl}#${hashString}`;
+
+                // Render result card
+                document.getElementById('generatedUrlInput').value = fullLockedUrl;
+                document.getElementById('testLinkBtn').href = fullLockedUrl;
+
+                // Render QR code
+                const qrContainer = document.getElementById('qrcode');
+                qrContainer.innerHTML = '';
+                qrCodeInstance = new QRCode(qrContainer, {
+                    text: fullLockedUrl,
+                    width: 128,
+                    height: 128,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+
+                document.getElementById('resultCard').classList.remove('hidden');
+                document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred during encryption: ' + err.message);
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<i class="fa-solid fa-bolt text-amber-300"></i><span>Generate Locked Link</span>';
+            }
+        }
+
+        /**
+         * Copy Generated Link to Clipboard
+         */
+        function copyGeneratedLink() {
+            const input = document.getElementById('generatedUrlInput');
+            input.select();
+            
+            // Clipboard copy standard & fallback
+            try {
+                document.execCommand('copy');
+            } catch (e) {
+                navigator.clipboard.writeText(input.value);
+            }
+
+            const copyBtnText = document.getElementById('copyBtnText');
+            copyBtnText.textContent = 'Copied!';
+            setTimeout(() => {
+                copyBtnText.textContent = 'Copy Link';
+            }, 2000);
+        }
+
+        /**
+         * Handle Link Unlocking
+         */
+        async function handleUnlockLink(e) {
+            e.preventDefault();
+            const password = document.getElementById('unlockPassword').value;
+            const unlockBtn = document.getElementById('unlockBtn');
+            const feedback = document.getElementById('unlockFeedback');
+            const feedbackIcon = document.getElementById('feedbackIcon');
+            const feedbackText = document.getElementById('feedbackText');
+
+            const hash = window.location.hash;
+            const params = new URLSearchParams(hash.replace(/^#/, ''));
+            const encryptedPayload = params.get('data');
+
+            if (!encryptedPayload) {
+                showFeedback('Invalid or missing encrypted payload in URL hash.', 'error');
+                return;
+            }
+
+            unlockBtn.disabled = true;
+            unlockBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Decrypting...</span>';
+
+            try {
+                decryptedTargetUrl = await decryptUrl(encryptedPayload, password);
+
+                // Ensure protocol exists for clean redirect
+                if (!/^https?:\/\//i.test(decryptedTargetUrl)) {
+                    decryptedTargetUrl = 'https://' + decryptedTargetUrl;
+                }
+
+                // Success UI Updates
+                showFeedback('Access granted! Unlocking destination...', 'success');
+                document.getElementById('lockStateIcon').className = 'fa-solid fa-unlock-keyhole text-emerald-400';
+                document.getElementById('unlockForm').classList.add('hidden');
+                document.getElementById('redirectArea').classList.remove('hidden');
+                document.getElementById('directRedirectLink').href = decryptedTargetUrl;
+
+                // Start 3 second countdown timer
+                let count = 3;
+                document.getElementById('countdownSec').textContent = count;
+                
+                redirectTimer = setInterval(() => {
+                    count--;
+                    document.getElementById('countdownSec').textContent = count;
+                    if (count <= 0) {
+                        clearInterval(redirectTimer);
+                        window.location.href = decryptedTargetUrl;
+                    }
+                }, 1000);
+
+            } catch (err) {
+                console.error(err);
+                showFeedback('Incorrect password. Failed to decrypt payload.', 'error');
+                document.getElementById('unlockPassword').value = '';
+                document.getElementById('unlockPassword').focus();
+            } finally {
+                unlockBtn.disabled = false;
+                unlockBtn.innerHTML = '<i class="fa-solid fa-unlock"></i><span>Decrypt & Access URL</span>';
+            }
+        }
+
+        function showFeedback(msg, type) {
+            const feedback = document.getElementById('unlockFeedback');
+            const feedbackIcon = document.getElementById('feedbackIcon');
+            const feedbackText = document.getElementById('feedbackText');
+
+            feedback.classList.remove('hidden', 'bg-rose-500/10', 'border-rose-500/30', 'text-rose-300', 'bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-300');
+
+            if (type === 'error') {
+                feedback.classList.add('bg-rose-500/10', 'border', 'border-rose-500/30', 'text-rose-300');
+                feedbackIcon.className = 'fa-solid fa-circle-exclamation text-rose-400';
+            } else {
+                feedback.classList.add('bg-emerald-500/10', 'border', 'border-emerald-500/30', 'text-emerald-300');
+                feedbackIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+            }
+
+            feedbackText.textContent = msg;
+        }
+
+        function copyTargetUrl() {
+            if (!decryptedTargetUrl) return;
+            
+            const tempInput = document.createElement('input');
+            tempInput.value = decryptedTargetUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            alert('Target URL copied to clipboard: ' + decryptedTargetUrl);
+        }
+    </script>
+</body>
+</html>

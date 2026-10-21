@@ -174,10 +174,9 @@
                         </div>
 
                         <!-- Action Button -->
-                        <button type="submit" id="generateBtn" class="w-full py-3.5 px-6 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/30 hover:shadow-brand-500/50 transition-all duration-200 flex items-center justify-center space-x-2 text-sm sm:text-base group mt-2">
-                            <i class="fa-solid fa-bolt text-amber-300 group-hover:scale-110 transition-transform"></i>
-                            <span>Generate Locked Link</span>
-                        </button>
+<button type="submit" id="generateBtn" class="w-full py-3.5 px-6 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/30 hover:shadow-brand-500/50 transition-all duration-200 flex items-center justify-center space-x-2 text-sm sm:text-base group mt-2">
+    <span>Generate Locked Link</span>
+</button>
                     </form>
                 </div>
 
@@ -607,11 +606,11 @@
 
             } catch (err) {
                 console.error(err);
-                alert('An error occurred during encryption: ' + err.message);
-            } finally {
-                generateBtn.disabled = false;
-                generateBtn.innerHTML = '<i class="fa-solid fa-bolt text-amber-300"></i><span>Generate Locked Link</span>';
-            }
+        alert('An error occurred during encryption: ' + err.message);
+    } finally {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<span>Generate Locked Link</span>';
+    }
         }
 
         /**
